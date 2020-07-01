@@ -1,0 +1,283 @@
+%% LyX 2.3.4.2 created this file.  For more info, see http://www.lyx.org/.
+%% Do not edit unless you really know what you are doing.
+\documentclass[ruled]{article}
+\usepackage{courier}
+\usepackage[T1]{fontenc}
+\usepackage[latin9]{inputenc}
+\usepackage[letterpaper]{geometry}
+\geometry{verbose}
+\usepackage{color}
+\usepackage{algorithm2e}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage[unicode=true,
+ bookmarks=false,
+ breaklinks=false,pdfborder={0 0 1},backref=section,colorlinks=true]
+ {hyperref}
+ 
+ \usepackage{parskip}
+\setlength{\parindent}{0pt}
+
+\usepackage{graphicx}
+\usepackage{fancyhdr}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{ifthen}
+\usepackage{titlesec}
+
+\titleformat{\section}
+{\color{RoyalPurple}\normalfont\Large\bfseries}
+{\color{RoyalPurple}\thesection}{1em}{}
+
+\titleformat{\subsection}
+{\color{RoyalPurple}\normalfont\large\bfseries}
+{\color{RoyalPurple}\thesubsection}{1em}{}
+
+\makeatletter
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% LyX specific LaTeX commands.
+\providecommand{\LyX}{\texorpdfstring%
+  {L\kern-.1667em\lower.25em\hbox{Y}\kern-.125emX\@}
+  {LyX}}
+%% Special footnote code from the package 'stblftnt.sty'
+%% Author: Robin Fairbairns -- Last revised Dec 13 1996
+\let\SF@@footnote\footnote
+\def\footnote{\ifx\protect\@typeset@protect
+    \expandafter\SF@@footnote
+  \else
+    \expandafter\SF@gobble@opt
+  \fi
+}
+\expandafter\def\csname SF@gobble@opt \endcsname{\@ifnextchar[%]
+  \SF@gobble@twobracket
+  \@gobble
+}
+\edef\SF@gobble@opt{\noexpand\protect
+  \expandafter\noexpand\csname SF@gobble@opt \endcsname}
+\def\SF@gobble@twobracket[#1]#2{}
+%% Because html converters don't know tabularnewline
+\providecommand{\tabularnewline}{\\}
+
+\@ifundefined{date}{}{\date{}}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% User specified LaTeX commands.
+\definecolor{mygreen}{rgb}{0,0.6,0}
+\definecolor{mygray}{rgb}{0.5,0.5,0.5}
+\definecolor{mymauve}{rgb}{0.58,0,0.82}
+
+\makeatother
+
+% macros
+\input{macros.tex}
+\input{rosenberg-macros.tex}
+\global\long\def\nll{\text{NLL}}%
+
+\newif\ifsolution
+% uncomment the following line to hide solutions
+\solutiontrue
+\ifsolution
+\newcommand{\solution}[1]{\textbf{Solution:} #1}
+\else
+\newcommand{\solution}[1]{}
+\fi
+
+\begin{document}
+
+
+\pagestyle{fancy} \lhead{\includegraphics[width=4cm]{logo.PNG}} \rhead{}
+
+\begin{center}
+{\LARGE
+DS-GA 1003: Machine Learning (Spring 2020) 
+} 
+\end{center}
+\begin{center}
+    {\Large
+Homework 5: Probabilistic models
+}
+\end{center}
+
+
+\begin{minipage}{0.6\textwidth}
+ \vspace{2mm}
+{\large
+{\color{RoyalPurple} Due: Wednesday, April 15, 2020 at 11:59pm} 
+} 
+\end{minipage}
+
+\vspace{0.4cm}
+In this homework we'll be investigating conditional probability models,
+with a focus on various interpretations of logistic regression, with
+and without regularization. Along the way we'll discuss the calibration
+of probability predictions, both in the limit of infinite training
+data and in a more bare-hands way. On the Bayesian side, we'll recreate
+from scratch the Bayesian linear gaussian regression example we discussed
+in lecture. We'll also have several optional problems that work through
+many basic concepts in Bayesian statistics via one of the simplest
+problems there is: estimating the probability of heads in a coin flip.
+Later we'll extend this to the probability of estimating click-through
+rates in mobile advertising. Along the way we'll encounter empirical
+Bayes and hierarchical models. 
+
+{\color{RoyalPurple} \bf Instructions.} You should upload your code and plots to Gradescope. Please map the Gradescope entry on the rubric to your name and NetId. You must follow the policies for submission detailed in Homework 0.   
+
+\vspace{0.6cm}
+\hrule
+\vspace{0.6cm}
+
+\section{Logistic Regression}
+\label{sec:lr}
+Consider a binary classification setting with input
+space $\cx=\reals^{d}$, outcome space $\cy_{\pm}=\left\{ -1,1\right\} $,
+and a dataset $\cd=\left((x^{(1)},y^{(1)}),\ldots,(\xn,\yn)\right)$.
+
+
+\subsection{\label{subsec:erm-bernoulli-setup}Equivalence of ERM and probabilistic
+approaches}
+In the lecture we derived logistic regression using the Bernoulli response distribution.
+In this problem you will show that it is equivalent to ERM with logistic loss.
+
+\textbf{ERM with logistic loss.}
+Consider a linear scoring function in the space $\cf_{\text{score}}=\left\{ x\mapsto x^{T}w\mid w\in\reals^{d}\right\} $.
+A simple way to make predictions (similar to what we've seen with the perceptron algorithm)
+is to predict $\hat{y}=1$ if $x^Tw > 0$, or $\hat{y} = \text{sign}(x^Tw)$.
+Accordingly, we consider margin-based loss functions that relate the loss with the margin, $yx^Tw$.
+A positive margin means that $x^Tw$ has the same sign as $y$, i.e. a correct prediction.
+Specifically, let's consider the \textbf{logistic loss} function $\ell_{\text{logistic}}(y, w)=\log\left(1+\exp(-yw^Tx)\right)$.
+You should see that it is a margin-based loss function and an upper bound of the 0-1 loss.
+Given the logistic loss, we can now minimize the empirical risk on our dataset to obtain an estimate of the parameters, $\hat{w}$.
+
+\textbf{MLE with a Bernoulli response distribution and the logistic link function.}
+As discussed in the lecture, given that
+$p(y=1\mid x; w) = 1 / \p{1 + \exp(-x^Tw)}$,
+we can estimate $w$ by maximizing the likelihood, or equivalently,
+minimizing the negative log-likelihood (\nll) of the data.
+
+Show that the two approaches are equivalent, \ie they will produce the same solution for $w$.
+
+\subsection{Linearly Separable Data}
+\label{sec:linear}
+In this problem, we will investigate the behavior of MLE for logistic regression when the data is linearly separable.
+
+\begin{enumerate}
+\item Show that the decision boundary of logistic regression is given by $\pc{x\colon x^Tw=0}$.
+Note that the set will not change if we multiply the weights by some constant $c$.
+\item Suppose the data is linearly separable and by gradient descent/ascent we have reached a decision boundary defined by $\hat{w}$ where all examples are classified correctly. 
+Show that we can increase the likelihood of the data by increasing a scaler $c$ on $\hat{w}$ unboundedly,
+which means that MLE is not well-defined in this case.
+\hint{You can show this by taking the derivative of $L(c\hat{w})$ with respect to $c$, where $L$ is the likelihood function.}
+\end{enumerate}
+
+\subsection{\label{subsec:Regularized-Logistic-Regression}Regularized Logistic
+Regression}
+As we've shown in \refsec{linear}, when the data is linearly separable,
+MLE for logistic regression may end up with very large weights, which is a sign of overfitting.
+In this part, we will apply regularization to fix the problem.
+
+The $\ell_2$ regularized
+logistic regression objective function can be defined as
+\begin{eqnarray*}
+J_{\text{logistic}}(w) & = & \hat{R}_{n}(w)+\lambda\|w\|^{2}\\
+ & = & \frac{1}{n}\sum_{i=1}^{n}\log\left(1+\exp\left(-y^{(i)}w^{T}x^{(i)}\right)\right)+\lambda\|w\|^{2}.
+\end{eqnarray*}
+ 
+\begin{enumerate}
+\item Prove that the objective function $J_{\text{logistic}}(w)$ is convex.
+You may use any facts mentioned in the \href{https://davidrosenberg.github.io/mlcourse/Notes/convex-optimization.pdf}{convex optimization notes}.
+
+\item Complete the \texttt{f\_objective} function in the skeleton code,
+which computes the objective function for $J_{\text{logistic}}(w)$.
+(Hint: you may get numerical overflow when computing the exponential literally,
+\eg try $e^{1000}$ in Numpy.
+Make sure to read about the
+\href{https://blog.feedly.com/tricks-of-the-trade-logsumexp/}{log-sum-exp trick}
+and use the numpy function
+\textit{ \href{https://docs.scipy.org/doc/numpy/reference/generated/numpy.logaddexp.html}{logaddexp}
+}
+to get accurate calculations
+and to prevent overflow.
+
+\item Complete the \texttt{fit\_logistic\_regression\_function} in the skeleton
+code using the \texttt{minimize} function from \texttt{scipy.optimize}.
+Use this function to train
+a model on the provided data. Make sure to take the appropriate preprocessing
+steps, such as standardizing the data and adding a column for the
+bias term. 
+
+\item Find the $\ell_{2}$ regularization parameter that minimizes the log-likelihood
+on the validation set. Plot the log-likelihood for different values
+of the regularization parameter. 
+
+\item {[}Optional{]} 
+It seems reasonable to interpret the prediction $f(x)=\phi(w^{T}x)=1/\left(1+e^{-w^{T}x}\right)$
+as the probability that $y=1$, for a randomly drawn pair $\left(x,y\right)$.
+Since we only have a finite sample (and we are regularizing, which
+will bias things a bit) there is a question of how well ``\href{https://en.wikipedia.org/wiki/Calibration_(statistics)}{calibrated}''
+our predicted probabilities are. Roughly speaking, we say $f(x)$
+is well calibrated if we look at all examples $\left(x,y\right)$
+for which $f(x)\approx0.7$ and we find that close to $70\%$ of those
+examples have $y=1$, as predicted... and then we repeat that for
+all predicted probabilities in $\left(0,1\right)$. To see how well-calibrated
+our predicted probabilities are, break the predictions on the validation
+set into groups based on the predicted probability (you can play with
+the size of the groups to get a result you think is informative).
+For each group, examine the percentage of positive labels. You can
+make a table or graph. Summarize the results. You may get some ideas
+and references from \href{http://scikit-learn.org/stable/modules/calibration.html}{scikit-learn's discussion}. 
+\end{enumerate}
+
+\section{Bayesian Logistic Regression with Gaussian Priors}
+
+Let's continue with logistic regression in the Bayesian setting, where we introduce a prior $p(w)$ on  $w\in\reals^{d}$. 
+\begin{enumerate}
+\item For the dataset $\cd$ described in \refsec{lr},
+give an expression for the posterior density $p(w\mid\cd)$ in terms
+of the negative log-likelihood function $\nll_{\cd}(w)$ and the prior density $p(w)$
+(up to a proportionality constant is fine).
+
+\item Suppose we take a prior on $w$ of the form $w\sim\cn(0,\Sigma)$. Is this a conjugate prior to the likelihood given by logistic regression?
+
+\item Find a covariance matrix $\Sigma$ such that MAP estimate for $w$
+after observing data $\cd$ is the same as the minimizer of the regularized
+logistic regression function defined in Section \ref{subsec:Regularized-Logistic-Regression}
+(and prove it). {[}Hint: Consider minimizing the negative log posterior
+of $w$. Also, remember you can drop any terms from the objective
+function that don't depend on $w$. You may freely use results
+of previous problems.{]}
+
+\item In the Bayesian approach, the prior should reflect your beliefs about
+the parameters before seeing the data and, in particular, should be
+independent on the eventual size of your dataset. Following this,
+you choose a prior distribution $w\sim\cn(0,I)$. For a dataset $\cd$
+of size $n$, how should you choose $\lambda$ in our regularized
+logistic regression objective function so that the minimizer is equal
+to the mode of the posterior distribution of $w$ (i.e. is equal to
+the MAP estimator). 
+\end{enumerate}
+
+\section{Coin Flipping with Partial Observability}
+Consider flipping a biased coin where $p(z=H\mid \theta_1) = \theta_1$.
+However, we cannot directly observe the result $z$.
+Instead, someone reports the result to us,
+which we denotey by $x$.
+Further, there is a chance that the result is reported incorrectly \emph{if it's a head}.
+Specifically, we have $p(x=H\mid z=H, \theta_2) = \theta_2$
+and $p(x=T\mid z=T) = 1$.
+
+\begin{enumerate}
+\item Show that $p(x=H\mid \theta_1, \theta_2) = \theta_1 \theta_2$.
+
+\item Given a set of reported results $\sD_r$ of size $N_r$, where the number of heads is $n_h$ and the number of tails is $n_t$. Can we estimate $\theta_1$ and $\theta_2$ using MLE? Explain your judgment.
+
+
+\item We additionally obtained a set of clean results $\sD_c$ of size $N_c$, where $x$ is directly observed without the reporter in the middle. Given that there are $c_h$ heads and $c_t$ tails,
+estimate $\theta_1$ and $\theta_2$ by MLE. Feel free to directly apply previous results. 
+Note that the likelihood is $L(\theta_1, \theta_2) = p(\sD_r, \sD_c\mid \theta_1, \theta_2)$.
+
+\item Since the clean results are expensive, we only have a small number of those.
+Let's put a prior distribution on $\theta_1$: $\text{Beta}(h, t)$.
+Derive the MAP estimates for $\theta_1$ and $\theta_2$.
+Feel free to directly apply previous results. 
+
+\end{enumerate}
+
+\end{document}
